@@ -171,9 +171,7 @@ class MetricsSource:
             return None
         payload = data.get("shopifyqlQuery") or {}
         if payload.get("parseErrors"):
-            messages = "; ".join(
-                str(entry.get("message")) for entry in payload["parseErrors"] or []
-            )
+            messages = "; ".join(str(entry) for entry in payload["parseErrors"] or [])
             logger.info("ShopifyQL rejected a query (%s): %s", messages, query)
             return None
         table = payload.get("tableData") or {}
@@ -185,7 +183,10 @@ class MetricsSource:
         self._shopifyql_available = True
         return Table(
             columns=columns,
-            rows=tuple(tuple(str(cell) for cell in row) for row in (table.get("rowData") or [])),
+            rows=tuple(
+                tuple(str(row.get(column, "")) for column in columns)
+                for row in (table.get("rows") or [])
+            ),
         )
 
     async def _sales_row(self, period: Period) -> Table | None:
@@ -198,10 +199,10 @@ class MetricsSource:
         if self._sessions_available is False:
             return None
         table = await self._shopifyql(
-            "FROM sessions SHOW total_sessions "
+            "FROM sessions SHOW sessions "
             f"SINCE {period.start.isoformat()} UNTIL {period.end.isoformat()}"
         )
-        if table is None or (total := table.value("total_sessions")) is None:
+        if table is None or (total := table.value("sessions")) is None:
             self._sessions_available = False
             return None
         self._sessions_available = True

@@ -145,7 +145,8 @@ class AdminGraphQLClient:
         if response.status_code == 401 or response.status_code == 403:
             raise AdminAPIError(
                 f"{name}: the Admin API rejected the access token ({response.status_code}); "
-                "check SHOPIFY_ADMIN_TOKEN and the app's scopes"
+                "it may have expired, and a token minted from a client ID and secret lasts "
+                "24 hours. Check SHOPIFY_ADMIN_TOKEN and the app's scopes"
             )
         if response.status_code == 429:
             return {"errors": [{"message": "rate limited", "extensions": {"code": _THROTTLED}}]}

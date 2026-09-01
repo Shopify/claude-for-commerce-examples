@@ -30,7 +30,7 @@ DERIVED_PRIOR_SALES = 317.0
 QL_SALES = [["4210.55", "31", "135.83"]]
 QL_COLUMNS = ("total_sales", "orders", "average_order_value")
 SALES_TABLE = {"FROM sales": (QL_COLUMNS, QL_SALES)}
-SESSIONS_TABLE = {"FROM sessions": (("total_sessions",), [["1240"]])}
+SESSIONS_TABLE = {"FROM sessions": (("sessions",), [["1240"]])}
 
 
 def test_a_period_ends_yesterday() -> None:

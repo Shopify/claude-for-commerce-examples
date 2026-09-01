@@ -434,22 +434,20 @@ class FakeAdmin:
         if match is None:
             return {
                 "shopifyqlQuery": {
-                    "__typename": "TableResponse",
-                    "parseErrors": [{"code": "UNAVAILABLE", "message": "reports not enabled"}],
+                    "parseErrors": ["reports not enabled"],
                     "tableData": None,
                 }
             }
         columns, rows = match
         return {
             "shopifyqlQuery": {
-                "__typename": "TableResponse",
                 "parseErrors": [],
                 "tableData": {
                     "columns": [
                         {"name": name, "dataType": "number", "displayName": name}
                         for name in columns
                     ],
-                    "rowData": rows,
+                    "rows": [dict(zip(columns, row, strict=True)) for row in rows],
                 },
             }
         }

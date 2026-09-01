@@ -142,13 +142,10 @@ query MarketingActivities($first: Int!) {
 SHOPIFYQL_QUERY = """
 query MetricsQuery($query: String!) {
   shopifyqlQuery(query: $query) {
-    __typename
-    parseErrors { code message }
-    ... on TableResponse {
-      tableData {
-        columns { name dataType displayName }
-        rowData
-      }
+    parseErrors
+    tableData {
+      columns { name dataType displayName }
+      rows
     }
   }
 }
