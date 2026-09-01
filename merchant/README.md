@@ -8,7 +8,7 @@ It runs two ways. Against a Shopify development store, where the schema, the sco
 writes are real. Or against `api/local_store.py`, an in-process stand-in for one store's
 Admin API that needs no Shopify account and no network: the same backend, the same documents,
 the same stage/approve/apply path, and an approved change really does change the catalog the
-portal is reading. Start with the local store to see the example work in one command; use a
+routes serve. Start with the local store to see the example work in one command; use a
 real store to find out whether it works.
 
 It covers the merchant half only. The buyer half of a Shopify integration is different work,
@@ -23,14 +23,14 @@ Admin API responses (`api/tests/fake_admin.py`):
 - All sixteen abstract `MerchantBackend` methods, plus `get_merchant_context`.
 - Staging writes nothing: every `stage_*` path is asserted to send zero mutations.
 - Applying writes exactly one thing: each apply asserts the operation name and its variables.
-- The approval gate: an apply from the chat path is held, the portal's button applies, and
-  the approval mark does not outlive the click.
-- The portal routes, which are the shared merchant routes, over this backend.
+- The approval gate: an apply from the chat path is held, the host's apply route applies,
+  and the approval mark does not outlive the call.
+- The HTTP routes, which are the blueprint's shared merchant routes, over this backend.
 - One whole turn with the model scripted: each gate reached from the model's side, and
   the cache breakpoint holding the static prompt steady while the store's figures change.
-- The local store, end to end: read the catalog through the portal's own route, stage a
-  price move, press the button the card shows, and read the catalog again to find the new
-  price, with nothing mocked between the route and the store.
+- The local store, end to end: read the catalog through the route, stage a price move,
+  apply it through the approval route, and read the catalog again to find the new price,
+  with nothing mocked between the route and the store.
 
 Beyond the suite, `scripts/smoke_live.py` has been run against a Shopify preview store on
 Admin API 2026-07: every read but `get_campaign_performance`, both safety claims, and one
@@ -42,33 +42,32 @@ absent, and 2026-07 has only the `product:` shape, so the legacy `input:` docume
 
 ## Run
 
+This example is the host and its routes; it ships no web UI. `/api/merchant` serves the
+reads, the chat stream, and the approval calls, and the operator-facing app is yours to
+build.
+
 ### 1. The local store: no account, no token, no network
 
-Install as the root README says, then run the two processes:
+Install as the root README says, then run the host:
 
 ```bash
 SHOPIFY_LOCAL_STORE=1 uvicorn merchant.api.main:app --port 8005
 ```
 
-```bash
-npm install && npm run dev -w merchant/web          # separate terminal · http://localhost:3105
-```
-
 `SHOPIFY_LOCAL_STORE=1` is the whole setup: it runs the example against
-`api/local_store.py` and the portal prints which store you are looking at. Copying
+`api/local_store.py`, and `store_kind` in `/api/merchant/overview` says which store you are
+looking at. Copying
 `merchant/.env.example` to `merchant/.env` sets the same thing in a file, beside the key,
 and is the way to keep it set; that file already has `SHOPIFY_LOCAL_STORE=1` in it.
 
 The local store is seeded from `data/seed.json`, the same catalog the real seeder sends,
 with two months of invented order history behind the seed orders so the metrics have a
 prior period to compare against. Chat needs `ANTHROPIC_API_KEY`, from the environment,
-`merchant/.env`, or the repo-root `.env`. Browsing the portal does not: `/showcase` renders
-every card from `web/lib/showcase-fixtures.ts` and needs neither a key nor a store.
+`merchant/.env`, or the repo-root `.env`. The reads do not.
 
 The local store dispatches on the same operation names `api/queries.py` sends, answers the
 same node shapes, and applies the mutations it is given, so a staged change stages, the
-approval gate holds it, and an approved change reaches the catalog the portal reads on its
-next paint.
+approval gate holds it, and an approved change reaches the catalog the next read serves.
 
 It is not a source of truth about Shopify. It cannot know sessions or conversion, so traffic
 reads 0 and the agent is told why instead of being shown a zero. It answers the sales half of
@@ -173,7 +172,7 @@ Then start the API again without `SHOPIFY_LOCAL_STORE`, and it uses the store. W
 
 ## Try
 
-In the portal, against either store:
+Through `/api/merchant/chat`, against either store:
 
 1. What needs my attention this morning?
 2. The bench dog set is nearly out and the listing is thin — restock it for a month at the current pace and write a description that covers what a buyer would ask. Show me both before anything goes live.
@@ -182,7 +181,7 @@ In the portal, against either store:
 
 The third turn applies nothing by itself: `MERCHANT_REQUIRE_HOST_APPROVAL` is on, so the
 agent's own `apply_change` is held on the approval gate and the change moves only when the
-Approve button on its preview card is clicked. The fourth is the variant case: the stool has
+host calls `POST /changes/{id}/apply`. The fourth is the variant case: the stool has
 two rungs at 60 and 90, and the staged change scales both.
 
 ## What is specific to this example
@@ -197,13 +196,12 @@ two rungs at 60 and 90, and the staged change scales both.
 | `api/metrics.py` | `MetricsSource`: ShopifyQL when the store answers it, the order scan when it does not, and a note saying which, so the agent can state its source |
 | `api/alerts.py` | Low stock, slow movers, delayed orders, and return spikes, computed from the catalog and the order scan against `data/thresholds.json` |
 | `api/staging.py` | The write side: one staged change to one or more Admin mutations, the version fallbacks, and the partial-write message |
-| `api/shopify_backend.py` | `ShopifyMerchantBackend`, the `MerchantBackend` over all of the above, plus the portal's KPI trends and insight cards |
+| `api/shopify_backend.py` | `ShopifyMerchantBackend`, the `MerchantBackend` over all of the above, plus the KPI trends and insight cards the reads serve |
 | `api/store_view.py` | `ShopifyStoreView`: the three things the shared merchant router reads from a storefront (`store_name`, `products`, `recent_orders`), answered from the store |
 | `api/merchant.py` | `create_merchant_portal`: the shared router over this backend, with an `executor` seam the suite uses to drive these routes rather than a copy of the wiring |
 | `api/agent_config.py` | The only module that reads the environment, and where `SHOPIFY_LOCAL_STORE` chooses between the two stores. Analysis is off: this example exposes no SQL surface |
 | `api/local_store.py` | The local store: one store's Admin API in process, seeded from `data/seed.json`, applying the mutations it is given. Dispatches on the same operation names as the transport it replaces, so a renamed operation fails here too |
 | `scripts/` | `seed_store.py`, `smoke_live.py` |
-| `web/` | The portal: overview, catalog, alerts, chat, and the three generative cards, over `../vendor/web-shared/` |
 
 `data/thresholds.json` holds the alert rules, including the only place a single product's
 low-stock threshold can be set. `data/seed.json` is the catalog the seeder creates.
@@ -215,8 +213,8 @@ low-stock threshold can be set. `data/seed.json` is the catalog the seeder creat
 1. The agent calls a `stage_*` tool. `ShopifyMerchantBackend` reads the product, computes the
    preview, runs the guardrails, and records the change in the `ChangeLedger`. **No Admin
    mutation is sent.** `api/tests/test_staging.py` asserts that for every staging path.
-2. The operator sees a preview card and clicks Approve. `POST /changes/{id}/apply` marks the
-   change id as host-approved, runs `apply_change` through the tool executor, and drops the
+2. The host shows the operator the preview and calls `POST /changes/{id}/apply`, which marks
+   the change id as host-approved, runs `apply_change` through the tool executor, and drops the
    mark, so a later chat turn cannot spend it.
 3. `apply_change` re-checks the guardrails against the current config, sends the mutations,
    and only then moves the ledger entry. A refused write leaves the change staged and
@@ -238,11 +236,11 @@ Three details about the gate:
   staged.
 - **A field this deployment cannot write is refused at staging.** `stage_listing_update`
   checks the field against the Admin paths it has before it records anything, so an
-  unwritable field never becomes a card with an Approve button. Refusing on the click instead
+  unwritable field never becomes an approvable change. Refusing at apply time instead
   would put the refusal after the operator's approval, at the wrong end of the gate. The
   refusal names the fields that can be written, because the model's next move is to pick one
   of them. A real turn exposed this: the model read `short_description` off the listing,
-  staged it under that name, and the card was approvable before the write was.
+  staged it under that name, and the change was approvable before the write was.
 
 ## Tests
 

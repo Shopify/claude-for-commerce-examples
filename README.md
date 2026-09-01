@@ -87,10 +87,6 @@ and writes back the ones the operator approves.
 SHOPIFY_LOCAL_STORE=1 uvicorn merchant.api.main:app --port 8005
 ```
 
-```bash
-npm install && npm run dev -w merchant/web         # separate terminal · http://localhost:3105
-```
-
 That needs no Shopify account. `SHOPIFY_LOCAL_STORE=1` points the backend at
 `merchant/api/local_store.py`, an in-process stand-in for one store's Admin API seeded from
 `merchant/data/seed.json`. Against a real development store, put `SHOPIFY_SHOP_DOMAIN` and
@@ -99,10 +95,13 @@ variable, and `merchant/README.md` the scope each read needs — then seed it wi
 and check it with `merchant/scripts/smoke_live.py`.
 
 Writes are gated, and that is the part worth reading the code for. The agent's `stage_*`
-tools send no Admin mutation at all: a staged change becomes a preview card, and only the
-Approve button on that card applies it. The Admin token is read once, in
+tools send no Admin mutation at all: a staged change is recorded in the ledger, and only
+`POST /api/merchant/changes/{id}/apply` applies it. The Admin token is read once, in
 `merchant/api/agent_config.py`, and handed to the transport; it never reaches the model, a
 route, or a log.
+
+This example is the host alone; it ships no web UI. `/api/merchant` serves the reads, the
+chat stream, and the approval calls, and the operator-facing app is yours to build.
 
 [merchant/README.md](merchant/README.md) is how to run it, against either store.
 
@@ -119,8 +118,6 @@ route, or a log.
   every document it sends (`queries.py`), the catalog and order caches, the
   `MerchantBackend` (`shopify_backend.py`), the staging layer (`staging.py`), and the
   in-process local store.
-- `merchant/web/`: the approval portal (Next.js) — overview, catalog, alerts, and the
-  change preview card that carries the Approve button.
 - `merchant/scripts/`, `merchant/data/`: the store seeder, the live smoke check, the seed
   catalog, and the alert thresholds.
 - `vendor/`: the blueprint's example scaffolding (`demo_common`, `web-shared`) and its

@@ -1,6 +1,6 @@
 {
   "name": "claude-for-commerce-examples",
   "private": true,
-  "workspaces": ["vendor/web-shared", "storefront/web", "merchant/web"],
+  "workspaces": ["vendor/web-shared", "storefront/web"],
   "scripts": { "build": "npm run build --workspaces --if-present" }
 }
