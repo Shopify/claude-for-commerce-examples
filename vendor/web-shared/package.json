@@ -1,0 +1,9 @@
+{
+  "name": "web-shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}

@@ -1,0 +1,133 @@
+[
+ {
+  "key": "/api/ucp/mcp get_checkout gid://shopify/Checkout/completed-fixture?key=0f0f0f0f",
+  "endpoint_path": "/api/ucp/mcp",
+  "name": "get_checkout",
+  "arguments": {
+   "id": "gid://shopify/Checkout/completed-fixture?key=0f0f0f0f"
+  },
+  "response": {
+   "jsonrpc": "2.0",
+   "id": 1,
+   "result": {
+    "isError": false,
+    "structuredContent": {
+     "ucp": {
+      "version": "2026-04-08",
+      "capability": "dev.ucp.shopping.checkout"
+     },
+     "id": "gid://shopify/Checkout/completed-fixture?key=0f0f0f0f",
+     "status": "completed",
+     "currency": "CAD",
+     "line_items": [
+      {
+       "id": "gid://shopify/CartLine/order-fixture-1",
+       "item": {
+        "id": "gid://shopify/ProductVariant/43696933273622",
+        "title": "Women's T-shirt",
+        "price": 4000
+       },
+       "quantity": 2,
+       "totals": [
+        {"type": "subtotal", "display_text": "Subtotal", "amount": 8000},
+        {"type": "total", "display_text": "Total", "amount": 8000}
+       ]
+      }
+     ],
+     "totals": [
+      {"type": "subtotal", "display_text": "Subtotal", "amount": 8000},
+      {"type": "fulfillment", "display_text": "Shipping", "amount": 500},
+      {"type": "tax", "display_text": "Tax", "amount": 1105},
+      {"type": "total", "display_text": "Total", "amount": 9605}
+     ],
+     "order": {
+      "id": "gid://shopify/Order/1042",
+      "permalink_url": "https://fakestore-ai.myshopify.com/account/orders/1042"
+     },
+     "messages": []
+    }
+   }
+  }
+ },
+ {
+  "key": "/api/ucp/mcp get_order gid://shopify/Order/1042",
+  "endpoint_path": "/api/ucp/mcp",
+  "name": "get_order",
+  "arguments": {
+   "id": "gid://shopify/Order/1042"
+  },
+  "response": {
+   "jsonrpc": "2.0",
+   "id": 2,
+   "result": {
+    "isError": false,
+    "structuredContent": {
+     "ucp": {
+      "version": "2026-04-08",
+      "capability": "dev.ucp.shopping.checkout"
+     },
+     "id": "gid://shopify/Order/1042",
+     "label": "#1042",
+     "checkout_id": "gid://shopify/Checkout/completed-fixture?key=0f0f0f0f",
+     "permalink_url": "https://fakestore-ai.myshopify.com/account/orders/1042",
+     "currency": "CAD",
+     "line_items": [
+      {
+       "id": "gid://shopify/LineItem/9001",
+       "item": {
+        "id": "gid://shopify/ProductVariant/43696933273622",
+        "title": "Women's T-shirt",
+        "price": 4000,
+        "image_url": "https://cdn.shopify.com/s/files/womens-t-shirt.jpg"
+       },
+       "quantity": {"original": 2, "total": 2, "fulfilled": 2},
+       "totals": [
+        {"type": "subtotal", "display_text": "Subtotal", "amount": 8000},
+        {"type": "total", "display_text": "Total", "amount": 8000}
+       ],
+       "status": "fulfilled"
+      }
+     ],
+     "fulfillment": {
+      "expectations": [
+       {
+        "id": "gid://shopify/FulfillmentExpectation/1042-1",
+        "line_items": ["gid://shopify/LineItem/9001"],
+        "method_type": "shipping",
+        "destination": {"city": "Toronto", "country": "CA"}
+       }
+      ],
+      "events": [
+       {
+        "id": "gid://shopify/FulfillmentEvent/1042-1",
+        "occurred_at": "2026-08-20T14:05:00Z",
+        "type": "shipped",
+        "tracking_number": "ACME0001042",
+        "tracking_url": "https://track.acme.example/ACME0001042",
+        "carrier": "ACME Post",
+        "line_items": ["gid://shopify/LineItem/9001"]
+       },
+       {
+        "id": "gid://shopify/FulfillmentEvent/1042-2",
+        "occurred_at": "2026-08-22T09:30:00Z",
+        "type": "in_transit",
+        "tracking_number": "ACME0001042",
+        "tracking_url": "https://track.acme.example/ACME0001042",
+        "carrier": "ACME Post",
+        "line_items": ["gid://shopify/LineItem/9001"]
+       }
+      ]
+     },
+     "adjustments": [],
+     "totals": [
+      {"type": "subtotal", "display_text": "Subtotal", "amount": 8000},
+      {"type": "fulfillment", "display_text": "Shipping", "amount": 500},
+      {"type": "tax", "display_text": "Tax", "amount": 1105},
+      {"type": "total", "display_text": "Total", "amount": 9605}
+     ],
+     "messages": []
+    }
+   }
+  }
+ }
+]

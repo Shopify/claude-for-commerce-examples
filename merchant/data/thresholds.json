@@ -1,0 +1,17 @@
+{
+  "_note": "The rules api/alerts.py measures against. SHOPIFY_LOW_STOCK_DEFAULT and SHOPIFY_FULFILMENT_SLA_DAYS in the environment override the store-wide defaults; the per-type and per-handle entries below are the only place a single product's threshold can be set.",
+
+  "low_stock_by_type": {
+    "Workshop tools": 12,
+    "Storage": 6
+  },
+  "low_stock_by_handle": {
+    "canvas-tool-apron": 15
+  },
+
+  "slow_mover_max_units_30d": 2,
+  "slow_mover_min_stock": 12,
+
+  "return_spike_pct": 20.0,
+  "return_spike_min_units": 4
+}

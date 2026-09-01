@@ -1,0 +1,264 @@
+{
+  "_note": "The catalog scripts/seed_store.py creates on an empty store, so a freshly provisioned store shows every read and alert this example implements. Handles and product types line up with data/thresholds.json: the low-stock rules there are keyed on 'Workshop tools', 'Storage', and the canvas-tool-apron handle, and the quantities below are chosen to sit on either side of them. The products are the same ones the test fixture describes, so a live store and the suite tell the same story.",
+  "store": {
+    "name": "ACME Supply Co.",
+    "vendor": "ACME Supply Co."
+  },
+  "products": [
+    {
+      "handle": "canvas-tool-apron",
+      "title": "Canvas tool apron",
+      "product_type": "Workshop tools",
+      "status": "ACTIVE",
+      "description": "Waxed canvas, six pockets, riveted at every seam. The apron most of the bench crew ends up wearing.",
+      "seo_description": "A waxed canvas apron with six pockets, built for the workshop bench.",
+      "_why": "The ordinary case: one variant, a unit cost, healthy stock. Every margin and pricing read has something to work with.",
+      "variants": [
+        {
+          "title": "Default Title",
+          "sku": "ACME-AP-1",
+          "price": "40.00",
+          "cost": "10.00",
+          "quantity": 25
+        }
+      ]
+    },
+    {
+      "handle": "folding-step-stool",
+      "title": "Folding step stool",
+      "product_type": "Storage",
+      "status": "ACTIVE",
+      "description": "Two heights, folds flat against a wall. Powder-coated steel with a textured tread.",
+      "seo_description": "A folding steel step stool in two heights.",
+      "_why": "A variant ladder. A price move has to scale the whole ladder rather than flatten it to one price, and the catalog read has to report a range.",
+      "variants": [
+        {
+          "title": "Two step",
+          "sku": "ACME-SS-2",
+          "price": "60.00",
+          "cost": "24.00",
+          "quantity": 14
+        },
+        {
+          "title": "Three step",
+          "sku": "ACME-SS-3",
+          "price": "90.00",
+          "cost": "36.00",
+          "quantity": 9
+        }
+      ]
+    },
+    {
+      "handle": "bench-dog-set",
+      "title": "Bench dog set",
+      "product_type": "Workshop tools",
+      "status": "ACTIVE",
+      "description": "Four dogs.",
+      "seo_description": null,
+      "_why": "Low stock against the 'Workshop tools' threshold of 12, and thin content: a four-word description, no SEO description, and no images. The content-quality read should call it poor.",
+      "media": 0,
+      "variants": [
+        {
+          "title": "Default Title",
+          "sku": "ACME-BD-4",
+          "price": "18.00",
+          "cost": "7.50",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "handle": "shop-stool-cushion",
+      "title": "Shop stool cushion",
+      "product_type": "Storage",
+      "status": "DRAFT",
+      "description": "A firm foam cushion with a canvas cover, sized to the shop stool.",
+      "seo_description": "A canvas-covered cushion for the ACME shop stool.",
+      "_why": "A draft, which the merchant interface reads as paused and not visible in the storefront. Plenty of stock, so it also reads as a slow mover.",
+      "variants": [
+        {
+          "title": "Default Title",
+          "sku": "ACME-SC-1",
+          "price": "22.00",
+          "cost": "9.00",
+          "quantity": 30
+        }
+      ]
+    },
+    {
+      "handle": "layout-square",
+      "title": "Layout square",
+      "product_type": "Workshop tools",
+      "status": "ACTIVE",
+      "description": "Machined aluminium, etched to a quarter inch, square enough to check other squares against.",
+      "seo_description": "A machined aluminium layout square etched to a quarter inch.",
+      "_why": "No unit cost. Every margin figure must be absent rather than guessed, and the price floor falls back to the guardrail rather than to cost.",
+      "variants": [
+        {
+          "title": "Default Title",
+          "sku": "ACME-LS-1",
+          "price": "34.00",
+          "cost": null,
+          "quantity": 18
+        }
+      ]
+    },
+    {
+      "handle": "sawdust-broom",
+      "title": "Sawdust broom",
+      "product_type": "Workshop tools",
+      "status": "ACTIVE",
+      "description": "Horsehair over a turned ash handle, stiff enough for a swept concrete floor.",
+      "seo_description": "A horsehair broom with a turned ash handle.",
+      "_why": "Inventory is not tracked. It raises no stock alert and cannot be restocked, which is a refusal the assistant has to explain rather than a failure.",
+      "tracks_inventory": false,
+      "variants": [
+        {
+          "title": "Default Title",
+          "sku": "ACME-SB-1",
+          "price": "26.00",
+          "cost": "11.00",
+          "quantity": null
+        }
+      ]
+    },
+    {
+      "handle": "cast-iron-hold-down",
+      "title": "Cast iron hold-down",
+      "product_type": "Workshop tools",
+      "status": "ACTIVE",
+      "description": "Cast and machined in one piece, with a cam that grips at any bench thickness up to three inches.",
+      "seo_description": "A cast iron bench hold-down with a cam clamp.",
+      "_why": "Plenty of stock and almost no sales: the clearest slow mover in the catalog.",
+      "variants": [
+        {
+          "title": "Default Title",
+          "sku": "ACME-HD-1",
+          "price": "48.00",
+          "cost": "19.00",
+          "quantity": 64
+        }
+      ]
+    },
+    {
+      "handle": "discontinued-mallet",
+      "title": "Discontinued mallet",
+      "product_type": "Workshop tools",
+      "status": "ARCHIVED",
+      "description": "A rawhide mallet the shop no longer stocks.",
+      "seo_description": null,
+      "_why": "Archived. It must not appear in the catalog, in any alert, or as a listing the assistant can change; a live store proves that as well as the suite does.",
+      "variants": [
+        {
+          "title": "Default Title",
+          "sku": "ACME-MA-1",
+          "price": "30.00",
+          "cost": "12.00",
+          "quantity": 0
+        }
+      ]
+    }
+  ],
+  "_orders_note": "The Admin API cannot backdate an order: draftOrderComplete stamps the order with the time it ran, and it will not create a refund for the asking. scripts/seed_store.py therefore reads only each order's lines, which means a freshly seeded store has sales in the current period and none in the period before it, and no refunds at all; the snapshot reads as a rise from zero until the store has been running a fortnight, and the return-spike rule stays quiet. Nothing in this example papers over that — the assistant reports the window it actually measured. The local store (SHOPIFY_LOCAL_STORE=1) is not bound by either limit, so it honours days_ago, fulfillment, and refunded below, and api/local_store.py invents further history behind them.",
+  "orders": [
+    {
+      "_why": "The store's ordinary traffic: the apron and the step stool are what sells.",
+      "days_ago": 1.0,
+      "lines": [
+        {
+          "handle": "canvas-tool-apron",
+          "quantity": 3
+        }
+      ]
+    },
+    {
+      "days_ago": 2.0,
+      "lines": [
+        {
+          "handle": "folding-step-stool",
+          "variant": "Two step",
+          "quantity": 1
+        },
+        {
+          "handle": "canvas-tool-apron",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "days_ago": 3.0,
+      "lines": [
+        {
+          "handle": "folding-step-stool",
+          "variant": "Three step",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "days_ago": 4.0,
+      "lines": [
+        {
+          "handle": "canvas-tool-apron",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "_why": "Nine units of the bench dog set across two orders, against stock of two: what puts it over its low-stock threshold and keeps it out of the slow-mover list.",
+      "days_ago": 5.0,
+      "lines": [
+        {
+          "handle": "bench-dog-set",
+          "quantity": 5
+        }
+      ]
+    },
+    {
+      "days_ago": 6.0,
+      "refunded": "72.00",
+      "lines": [
+        {
+          "handle": "bench-dog-set",
+          "quantity": 4
+        }
+      ]
+    },
+    {
+      "_why": "One layout square, so the no-unit-cost product has sales but not enough to leave the slow-mover list.",
+      "days_ago": 8.0,
+      "lines": [
+        {
+          "handle": "layout-square",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "_why": "Left unfulfilled on purpose. It is not a delayed order yet — the fulfilment window is three days — and it becomes one if the store sits untouched for a long weekend.",
+      "days_ago": 1.0,
+      "fulfillment": "UNFULFILLED",
+      "lines": [
+        {
+          "handle": "canvas-tool-apron",
+          "quantity": 1
+        },
+        {
+          "handle": "bench-dog-set",
+          "quantity": 1
+        }
+      ]
+    },
+    {
+      "_why": "Unfulfilled and older than the fulfilment window, so the order-issues read has a delayed order to find. On a real store this one starts inside the window and crosses out of it as the store sits; locally it is already outside.",
+      "days_ago": 6.0,
+      "fulfillment": "UNFULFILLED",
+      "lines": [
+        {
+          "handle": "cast-iron-hold-down",
+          "quantity": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node / Next.js (vertical example frontends)
+node_modules/
+.next/
+next-env.d.ts
+*/web/AGENTS.md
+*/web/CLAUDE.md
+out/
+*.tsbuildinfo
+npm-debug.log*
+
+
+# Example runtime state. The memory files hold whatever a local demo
+# remembered — personal data in a real deployment — and are never committed.
+*/data/.memory-*.json
+
+# OS / editor / local tooling
+.DS_Store
+.idea/
+.vscode/
+.claude/
+pyrightconfig.json

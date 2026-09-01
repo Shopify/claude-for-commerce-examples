@@ -1,0 +1,192 @@
+{
+ "ucp": {
+  "version": "2026-04-08",
+  "supported_versions": {
+   "2026-04-08": "https://fakestore-ai.myshopify.com/.well-known/ucp/2026-04-08",
+   "2026-01-23": "https://fakestore-ai.myshopify.com/.well-known/ucp/2026-01-23"
+  },
+  "services": {
+   "dev.ucp.shopping": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/overview/",
+     "transport": "mcp",
+     "endpoint": "https://fakestore-ai.myshopify.com/api/ucp/mcp",
+     "schema": "https://ucp.dev/2026-04-08/services/shopping/mcp.openrpc.json"
+    },
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/overview/",
+     "transport": "embedded",
+     "schema": "https://ucp.dev/2026-04-08/services/shopping/embedded.openrpc.json"
+    }
+   ]
+  },
+  "capabilities": {
+   "dev.ucp.shopping.checkout": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/checkout",
+     "schema": "https://ucp.dev/2026-04-08/schemas/shopping/checkout.json"
+    }
+   ],
+   "dev.ucp.shopping.fulfillment": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/fulfillment",
+     "schema": "https://ucp.dev/2026-04-08/schemas/shopping/fulfillment.json",
+     "extends": [
+      "dev.ucp.shopping.checkout",
+      "dev.ucp.shopping.cart"
+     ],
+     "requires": {
+      "protocol": {
+       "min": "2026-04-08"
+      }
+     },
+     "config": {
+      "allows_multi_destination": {
+       "shipping": false
+      },
+      "allows_method_combinations": [
+       [
+        "shipping"
+       ]
+      ]
+     }
+    }
+   ],
+   "dev.ucp.shopping.discount": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/discount",
+     "schema": "https://ucp.dev/2026-04-08/schemas/shopping/discount.json",
+     "extends": [
+      "dev.ucp.shopping.checkout",
+      "dev.ucp.shopping.cart"
+     ],
+     "requires": {
+      "protocol": {
+       "min": "2026-04-08"
+      }
+     }
+    }
+   ],
+   "dev.ucp.shopping.cart": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/cart",
+     "schema": "https://ucp.dev/2026-04-08/schemas/shopping/cart.json"
+    }
+   ],
+   "dev.ucp.shopping.order": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specs/shopping/order",
+     "schema": "https://ucp.dev/2026-04-08/schemas/shopping/order.json"
+    }
+   ],
+   "dev.ucp.shopping.catalog.search": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/catalog",
+     "schema": "https://ucp.dev/2026-04-08/schemas/shopping/catalog_search.json"
+    }
+   ],
+   "dev.ucp.shopping.catalog.lookup": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://ucp.dev/2026-04-08/specification/catalog",
+     "schema": "https://ucp.dev/2026-04-08/schemas/shopping/catalog_lookup.json"
+    }
+   ],
+   "dev.shopify.catalog": [
+    {
+     "version": "2026-04-08",
+     "spec": "https://shopify.dev/docs/agents/catalog/storefront-catalog",
+     "schema": "https://shopify.dev/ucp/schemas/2026-04-08/shopify_catalog.json",
+     "extends": [
+      "dev.ucp.shopping.catalog.search",
+      "dev.ucp.shopping.catalog.lookup"
+     ],
+     "requires": {
+      "protocol": {
+       "min": "2026-04-08"
+      }
+     }
+    }
+   ]
+  },
+  "payment_handlers": {
+   "com.google.pay": [
+    {
+     "id": "gpay",
+     "version": "2026-01-11",
+     "spec": "https://pay.google.com/gp/p/ucp/2026-01-11/",
+     "schema": "https://pay.google.com/gp/p/ucp/2026-01-11/schemas/config.json",
+     "config": {
+      "api_version": 2,
+      "api_version_minor": 0,
+      "merchant_info": {
+       "merchant_name": "Mock.shop",
+       "merchant_id": "16708973830884969730",
+       "merchant_origin": "demostore.mock.shop",
+       "auth_jwt": ""
+      },
+      "allowed_payment_methods": [
+       {
+        "type": "CARD",
+        "parameters": {
+         "allowed_auth_methods": [
+          "PAN_ONLY",
+          "CRYPTOGRAM_3DS"
+         ],
+         "allowed_card_networks": [
+          "VISA",
+          "MASTERCARD",
+          "AMEX",
+          "DISCOVER"
+         ],
+         "billing_address_required": true,
+         "billing_address_parameters": {
+          "format": "FULL",
+          "phone_number_required": false
+         }
+        },
+        "tokenization_specification": {
+         "type": "PAYMENT_GATEWAY",
+         "parameters": {
+          "gateway": "shopify",
+          "gatewayMerchantId": "68817551382"
+         }
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "dev.shopify.card": [
+    {
+     "id": "shopify.card",
+     "version": "2026-01-15",
+     "spec": "https://ucp.dev/specification/payment-handler-guide",
+     "schema": "https://shopify.dev/ucp/card-payment-handler/2026-01-15/config.json",
+     "config": {
+      "payment_methods": [
+       {
+        "type": "card",
+        "enabled_card_brands": [
+         "visa",
+         "master",
+         "american_express",
+         "discover",
+         "diners_club"
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

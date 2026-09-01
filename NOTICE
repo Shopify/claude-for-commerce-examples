@@ -1,0 +1,24 @@
+Claude for Commerce examples
+Copyright 2026 Shopify Inc.
+
+This repository builds on Anthropic's commerce-agents blueprint
+(https://github.com/anthropics/commerce-agents), licensed under the
+Apache License, Version 2.0.
+
+- vendor/demo_common/, vendor/web-shared/, and vendor/skills/ are carried from that
+  repository. Copyright 2026 Anthropic PBC. Three lines differ from the pinned commit:
+    - vendor/demo_common/merchant.py declares its listing route as {listing_id:path},
+      because a Shopify product id is a gid with slashes in it. That is the merchant
+      counterpart of the /api/products/{product_id:path} route the carried copy
+      already has.
+    - vendor/demo_common/merchant.py and vendor/demo_common/storefront.py build the
+      .env path in the authentication error message without an examples/ prefix. The
+      blueprint keeps its examples under examples/ and this repository keeps them at
+      the root, so the message reads merchant/.env and storefront/.env, which is where
+      those files are.
+  All three stand until the pinned commit carries equivalent fixes.
+- The blueprint's core packages (commerce-common, shopping-agent, merchant-agent)
+  are not part of this repository; requirements.txt installs them from Anthropic's
+  repository at a pinned commit.
+- vendor/pyproject.toml and the example directories (storefront/, merchant/) are
+  Shopify-authored. Copyright 2026 Shopify Inc.
