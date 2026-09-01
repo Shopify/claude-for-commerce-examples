@@ -125,7 +125,7 @@ route, or a log.
   catalog, and the alert thresholds.
 - `vendor/`: the blueprint's example scaffolding (`demo_common`, `web-shared`) and its
   skills, five per agent under `skills/shopping/` and `skills/merchant/`, carried from
-  Anthropic's repository — see [NOTICE](NOTICE) for the three lines that differ.
+  Anthropic's repository — see [NOTICE](NOTICE) for the small local edits.
 
 ## Tests
 

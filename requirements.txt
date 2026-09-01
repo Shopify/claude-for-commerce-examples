@@ -4,14 +4,14 @@
 # The blueprint's core packages install straight from Anthropic's repository; only
 # UPSTREAM below moves when the pin does. vendor/ carries the repo's example
 # scaffolding (see NOTICE); storefront/ and merchant/ are the examples.
-# TODO(launch): pin @main to the commit Anthropic launches from.
-# UPSTREAM = https://github.com/anthropics/commerce-agents@main
 
-commerce-common[examples,dev] @ git+https://github.com/anthropics/commerce-agents@main#subdirectory=commerce-common
-shopping-agent-core @ git+https://github.com/anthropics/commerce-agents@main#subdirectory=shopping-agent/core
-shopping-agent-runtime @ git+https://github.com/anthropics/commerce-agents@main#subdirectory=shopping-agent/runtime-messages-api
-merchant-agent-core @ git+https://github.com/anthropics/commerce-agents@main#subdirectory=merchant-agent/core
-merchant-agent-runtime @ git+https://github.com/anthropics/commerce-agents@main#subdirectory=merchant-agent/runtime-messages-api
+# UPSTREAM = https://github.com/anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf
+
+commerce-common[examples,dev] @ git+https://github.com/anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf#subdirectory=commerce-common
+shopping-agent-core @ git+https://github.com/anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf#subdirectory=shopping-agent/core
+shopping-agent-runtime @ git+https://github.com/anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf#subdirectory=shopping-agent/runtime-messages-api
+merchant-agent-core @ git+https://github.com/anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf#subdirectory=merchant-agent/core
+merchant-agent-runtime @ git+https://github.com/anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf#subdirectory=merchant-agent/runtime-messages-api
 -e ./vendor
 
 annotated-doc==0.0.5
