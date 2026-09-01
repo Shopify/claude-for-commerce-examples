@@ -83,19 +83,35 @@ rejected.
 Any store you administer will do, and a development store is the one to use: this example
 writes, and an approved change is a change to that store's real catalog.
 
-**Mint an Admin API access token.** The token comes from a custom app created in the store's
-own admin. A custom app is installed on the one store it was created in, which fits a
-single-store example and rules out anything multi-shop.
+**Get an Admin API access token.** The old path, an app created in the store's own admin with
+its token revealed once, [can no longer be created][legacy-custom-apps]. A token from an app
+made that way still works, if you have one.
 
-1. In the store's admin, open **Settings → Apps and sales channels → Develop apps**.
-2. If the page offers it, click **Allow custom app development** and confirm. Only the store
-   owner can, and it cannot be undone for that store.
-3. Click **Create an app**, name it, and create it.
-4. On the app's **Configuration** tab, under **Admin API integration**, click **Configure**,
-   select the scopes in the table below, and **Save**.
-5. On the **API credentials** tab, click **Install app** and confirm.
-6. Under **Admin API access token**, click **Reveal token once** and copy the `shpat_…`
-   value.
+Otherwise the app goes in the Dev Dashboard, which issues a client ID and a client secret and
+never shows a token. You mint the token yourself.
+[Create apps using the Dev Dashboard][dd-create] has the clicks: create the app, put the
+scopes below on a version and release it, install it on the store, and copy the client ID and
+secret from the app's Settings. Then ask for a token.
+
+```bash
+curl -X POST https://your-store.myshopify.com/admin/oauth/access_token \
+  -d grant_type=client_credentials \
+  -d client_id="$SHOPIFY_CLIENT_ID" \
+  -d client_secret="$SHOPIFY_CLIENT_SECRET"
+```
+
+`access_token` in the reply is the `shpat_…` value that goes in `SHOPIFY_ADMIN_TOKEN`. It
+expires after 24 hours and carries no refresh token, so another one means running that request
+again. The `scope` beside it leaves out a read scope that its write counterpart already
+implies, so `write_products` comes back without `read_products` and nothing is missing. Two
+things in [the token doc][dd-tokens] catch people out: the app and the store have to be in the
+same Shopify organization, which a development store created from the Shopify admin is not,
+and the scopes come from the app's released version, so adding one later means releasing a new
+version and approving it on the store.
+
+[legacy-custom-apps]: https://shopify.dev/docs/apps/build/authentication-authorization/legacy/admin-custom-apps
+[dd-create]: https://shopify.dev/docs/apps/build/dev-dashboard/create-apps-using-dev-dashboard
+[dd-tokens]: https://shopify.dev/docs/apps/build/dev-dashboard/get-api-access-tokens
 
 | Scope | What needs it |
 |---|---|
@@ -105,24 +121,16 @@ single-store example and rules out anything multi-shop.
 | `read_locations` | The location an inventory move applies at |
 | `read_reports` | ShopifyQL metrics. Optional: with `SHOPIFY_DISABLE_SHOPIFYQL=1` every metric comes from the order scan instead |
 | `read_marketing_events` | `get_campaign_performance`. Optional: without it the tool reports that it cannot read, rather than returning a zero |
-
-The token is revealed once, and the way back from a lost one is to uninstall the app and
-install it again, which issues a new one. A scope added after installation does not apply
-until the app is reinstalled, so select the two optional scopes on the first pass even if you
-do not intend to use them.
-
-It does not expire. It belongs to the store, not to a staff session, so signing out of the
-admin does nothing to it; it stays valid until the app is uninstalled or the token is revoked.
-Treat it as a password for the store.
+| `write_draft_orders` | `scripts/seed_store.py` only, which places the seed orders as completed drafts. No agent tool creates an order; without it the catalog still seeds and only the order pass fails |
 
 Then, in `merchant/.env`, comment out `SHOPIFY_LOCAL_STORE` and fill in
 `SHOPIFY_ADMIN_TOKEN` and `SHOPIFY_SHOP_DOMAIN`, which is the `…myshopify.com` domain with no
 scheme.
 
-The token is a privileged credential for the scopes it was granted. It is read once, in
-`api/agent_config.py`, and handed to the Admin client; it is never sent to the model,
-returned by a route, written to a log, or included in an error message. The example
-persists it nowhere but `merchant/.env`, which is gitignored.
+The token is a privileged credential for the scopes it was granted, so treat it as a password
+for the store. It is read once, in `api/agent_config.py`, and handed to the Admin client; it
+is never sent to the model, returned by a route, written to a log, or included in an error
+message. The example persists it nowhere but `merchant/.env`, which is gitignored.
 
 **Seed it.** A new development store is empty, and an empty store makes every read return
 nothing.

@@ -81,8 +81,8 @@ def load_settings() -> ShopifySettings:
             "Set SHOPIFY_SHOP_DOMAIN and SHOPIFY_ADMIN_TOKEN in "
             "merchant/.env (copy merchant/.env.example), or set "
             "SHOPIFY_LOCAL_STORE=1 to run against the local store instead, with no "
-            "Shopify account at all. A real store means a development store with a "
-            "custom app: the README's Run section has the steps."
+            "Shopify account at all. A real store means a development store and a token "
+            "minted from a Dev Dashboard app: the README's Run section has the steps."
         )
     return ShopifySettings(
         shop_domain=domain.removeprefix("https://").removeprefix("http://").rstrip("/"),

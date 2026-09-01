@@ -458,13 +458,12 @@ class LocalStore:
             wanted = ("day", *wanted)
         return {
             "shopifyqlQuery": {
-                "__typename": "TableResponse",
                 "parseErrors": [],
                 "tableData": {
                     "columns": [
                         {"name": name, "dataType": "number", "displayName": name} for name in wanted
                     ],
-                    "rowData": rows,
+                    "rows": [dict(zip(wanted, row, strict=True)) for row in rows],
                 },
             }
         }
@@ -473,8 +472,7 @@ class LocalStore:
     def _parse_errors(message: str) -> dict[str, Any]:
         return {
             "shopifyqlQuery": {
-                "__typename": "TableResponse",
-                "parseErrors": [{"code": "UNAVAILABLE", "message": message}],
+                "parseErrors": [message],
                 "tableData": None,
             }
         }
