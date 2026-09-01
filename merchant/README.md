@@ -80,34 +80,34 @@ rejected.
 
 ### 2. A Shopify development store
 
-Any store you administer will do, and a development store is the one to use: this example
-writes, and an approved change is a change to that store's real catalog.
+Use a development store: this example writes, and an approved change is a change to that
+store's real catalog. Four steps, and the first three are clicks in the
+[Shopify Dev Dashboard][dd-create].
 
-**Get an Admin API access token.** The old path, an app created in the store's own admin with
-its token revealed once, [can no longer be created][legacy-custom-apps]. A token from an app
-made that way still works, if you have one.
+1. Dev stores, then create a store. It has to be made here. A store created from the Shopify
+   admin sits outside your organization, and an app's credentials are refused for a store
+   outside the organization the app is in.
+2. Apps, then create an app. Put the scopes from the table below on a version and release it.
+3. Install the app on the store from step 1 and approve the scopes, then copy the client ID
+   and secret from the app's Settings.
+4. In `merchant/.env`, comment out `SHOPIFY_LOCAL_STORE` and fill in `SHOPIFY_SHOP_DOMAIN`,
+   which is the `…myshopify.com` domain with no scheme, `SHOPIFY_CLIENT_ID`, and
+   `SHOPIFY_CLIENT_SECRET`.
 
-Otherwise the app goes in the Dev Dashboard, which issues a client ID and a client secret and
-never shows a token. You mint the token yourself.
-[Create apps using the Dev Dashboard][dd-create] has the clicks: create the app, put the
-scopes below on a version and release it, install it on the store, and copy the client ID and
-secret from the app's Settings. Then ask for a token.
+There is no token to copy, and none to replace tomorrow. `api/admin_token.py` mints one from
+the client ID and secret on the first request and mints another when that one runs out, which
+it will: a client credentials token lasts 24 hours and carries no refresh token, so either
+something renews it or somebody pastes a fresh one in every morning.
 
-```bash
-curl -X POST https://your-store.myshopify.com/admin/oauth/access_token \
-  -d grant_type=client_credentials \
-  -d client_id="$SHOPIFY_CLIENT_ID" \
-  -d client_secret="$SHOPIFY_CLIENT_SECRET"
-```
+The other way in is `SHOPIFY_ADMIN_TOKEN`, a `shpat_…` token minted or issued elsewhere, read
+only when the client ID and secret are unset. The old path that produced those, an app created
+in the store's own admin with its token revealed once,
+[can no longer be created][legacy-custom-apps]; a token from an app made that way still works,
+if you have one.
 
-`access_token` in the reply is the `shpat_…` value that goes in `SHOPIFY_ADMIN_TOKEN`. It
-expires after 24 hours and carries no refresh token, so another one means running that request
-again. The `scope` beside it leaves out a read scope that its write counterpart already
-implies, so `write_products` comes back without `read_products` and nothing is missing. Two
-things in [the token doc][dd-tokens] catch people out: the app and the store have to be in the
-same Shopify organization, which a development store created from the Shopify admin is not,
-and the scopes come from the app's released version, so adding one later means releasing a new
-version and approving it on the store.
+One more thing in [the token doc][dd-tokens] catches people out: the scopes come from the
+app's released version, so adding one later means releasing a new version and approving it on
+the store.
 
 [legacy-custom-apps]: https://shopify.dev/docs/apps/build/authentication-authorization/legacy/admin-custom-apps
 [dd-create]: https://shopify.dev/docs/apps/build/dev-dashboard/create-apps-using-dev-dashboard
@@ -123,14 +123,17 @@ version and approving it on the store.
 | `read_marketing_events` | `get_campaign_performance`. Optional: without it the tool reports that it cannot read, rather than returning a zero |
 | `write_draft_orders` | `scripts/seed_store.py` only, which places the seed orders as completed drafts. No agent tool creates an order; without it the catalog still seeds and only the order pass fails |
 
-Then, in `merchant/.env`, comment out `SHOPIFY_LOCAL_STORE` and fill in
-`SHOPIFY_ADMIN_TOKEN` and `SHOPIFY_SHOP_DOMAIN`, which is the `…myshopify.com` domain with no
-scheme.
+The scopes a minted token reports back are fewer than the ones you granted, because a read
+scope its write counterpart already implies is left out: `write_products` comes back without
+`read_products`, and nothing is missing.
 
-The token is a privileged credential for the scopes it was granted, so treat it as a password
-for the store. It is read once, in `api/agent_config.py`, and handed to the Admin client; it
-is never sent to the model, returned by a route, written to a log, or included in an error
-message. The example persists it nowhere but `merchant/.env`, which is gitignored.
+The client secret, and every token minted from it, are privileged credentials for the scopes
+the app was granted, so treat them as passwords for the store. The secret is read once, in
+`api/agent_config.py`, and handed to `api/admin_token.py`, the only object that holds it and
+the only one that ever holds a token; the transport asks that object for a token per request
+and keeps none. Neither is sent to the model, returned by a route, written to a log, or
+included in an error message, and the example persists them nowhere but `merchant/.env`, which
+is gitignored.
 
 **Seed it.** A new development store is empty, and an empty store makes every read return
 nothing.
@@ -186,7 +189,8 @@ two rungs at 60 and 90, and the staged change scales both.
 
 | Module | What it is |
 |---|---|
-| `api/admin_client.py` | The Admin GraphQL transport: the token held here and nowhere else, throttle-aware retries that read Shopify's own leaky-bucket figures, and `userErrors` raised rather than returned. The backend depends on the `AdminExecutor` protocol, not on this class, which is how the suite drives everything without a network |
+| `api/admin_client.py` | The Admin GraphQL transport: a token per request from `api/admin_token.py` and none held, throttle-aware retries that read Shopify's own leaky-bucket figures, a 401 answered by minting again and retrying once, and `userErrors` raised rather than returned. The backend depends on the `AdminExecutor` protocol, not on this class, which is how the suite drives everything without a network |
+| `api/admin_token.py` | Where the token comes from, and the only module that holds one. An app's client ID and secret mint a 24-hour token and mint another when it expires, under a lock so a cold start mints once; a pasted `SHOPIFY_ADMIN_TOKEN` is the other case and cannot be renewed |
 | `api/queries.py` | Every document this example sends, in one file so the whole API surface it depends on can be reviewed at once. Each carries an operation name; the fake dispatches on it, so a renamed operation fails loudly |
 | `api/catalog.py` | The product cache: one paged read at startup, `ProductRecord`/`VariantRecord`, the local scorer behind search, and the content-quality read |
 | `api/orders.py` | The trailing order scan every metric, alert, and order issue is derived from, and the daily rows the sparklines use |

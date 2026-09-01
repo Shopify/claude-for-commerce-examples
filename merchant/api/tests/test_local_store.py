@@ -53,6 +53,8 @@ def local_settings(settings: ShopifySettings) -> ShopifySettings:
         **{
             **settings.__dict__,
             "local_store": True,
+            "client_id": "",
+            "client_secret": "",
             "admin_token": "",
             "shop_domain": LOCAL_DOMAIN,
         }

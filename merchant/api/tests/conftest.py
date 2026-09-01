@@ -41,6 +41,8 @@ def settings() -> ShopifySettings:
     transport reads it."""
     return ShopifySettings(
         shop_domain="acme-supply.myshopify.com",
+        client_id="",
+        client_secret="",
         admin_token="not-a-real-token",
         api_version="2026-07",
         local_store=False,
