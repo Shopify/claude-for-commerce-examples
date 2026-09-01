@@ -52,6 +52,7 @@ from merchant.api.admin_client import (  # noqa: E402
     AdminUserError,
     operation_name,
 )
+from merchant.api.admin_token import token_source_for  # noqa: E402
 from merchant.api.agent_config import load_settings  # noqa: E402
 from merchant.api.queries import (  # noqa: E402
     ACTIVATE_INVENTORY,
@@ -486,7 +487,7 @@ async def main() -> int:
     settings = load_settings()
     client = AdminGraphQLClient(
         shop_domain=settings.shop_domain,
-        access_token=settings.admin_token,
+        token_source=token_source_for(settings),
         api_version=settings.api_version,
     )
     print(f"seeding {settings.shop_domain} ({settings.api_version})")

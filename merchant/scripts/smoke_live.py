@@ -49,6 +49,7 @@ from merchant.api.admin_client import (  # noqa: E402
     AdminAPIError,
     AdminGraphQLClient,
 )
+from merchant.api.admin_token import token_source_for  # noqa: E402
 from merchant.api.agent_config import (  # noqa: E402
     SKILLS_DIR,
     MissingCredentials,
@@ -277,7 +278,7 @@ async def main() -> int:
 
     client = AdminGraphQLClient(
         shop_domain=settings.shop_domain,
-        access_token=settings.admin_token,
+        token_source=token_source_for(settings),
         api_version=settings.api_version,
     )
     config = build_merchant_config(settings.store_name or settings.shop_domain)

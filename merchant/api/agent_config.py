@@ -7,7 +7,11 @@ this example that reads the environment.
     SHOPIFY_LOCAL_STORE        1 to run against api/local_store.py: no store, no token,
                                no network. Every other variable below is then optional.
     SHOPIFY_SHOP_DOMAIN        acme-supply.myshopify.com
-    SHOPIFY_ADMIN_TOKEN        shpat_… (server-side only; never sent to the model)
+    SHOPIFY_CLIENT_ID          a Dev Dashboard app's client ID
+    SHOPIFY_CLIENT_SECRET      its client secret; api/admin_token.py mints tokens from
+                               these two, so nothing here expires
+    SHOPIFY_ADMIN_TOKEN        shpat_…, for a token minted or issued elsewhere. The two
+                               above are the path to prefer; this one expires in 24 hours
     SHOPIFY_ADMIN_API_VERSION  Admin GraphQL version, pinned (default below)
     SHOPIFY_OPERATOR           who the ledger stamps on staged and applied changes
     SHOPIFY_STORE_NAME         display name; the shop's own name when unset
@@ -19,7 +23,7 @@ this example that reads the environment.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from demo_common import host_approval_default
@@ -39,16 +43,24 @@ LOCAL_DOMAIN = "acme-supply.local"
 
 
 class MissingCredentials(RuntimeError):
-    """Raised when the store's domain or token is absent, naming how to supply them."""
+    """Raised when the store's domain or its credential is absent, naming how to supply
+    them."""
 
 
 @dataclass(frozen=True)
 class ShopifySettings:
-    """One store's connection details. ``admin_token`` is read here and handed straight to
-    the Admin client; nothing else in the example holds it."""
+    """One store's connection details. The credential is read here and handed straight to
+    ``api/admin_token.py``; nothing else in the example holds it, and none of the three
+    secret fields appears in this dataclass's repr, so logging a settings object cannot
+    leak one."""
 
     shop_domain: str
-    admin_token: str
+    # The credential, in whichever of the two forms the store was set up with: an app's
+    # client ID and secret, which api/admin_token.py mints 24-hour tokens from, or a token
+    # pasted in whole, which it cannot renew. ``mints_tokens`` says which is in play.
+    client_id: str = field(repr=False)
+    client_secret: str = field(repr=False)
+    admin_token: str = field(repr=False)
     api_version: str
     # True when the store is ``api/local_store.py`` rather than a Shopify store. The token
     # is then empty, because there is nothing to authenticate to.
@@ -63,6 +75,11 @@ class ShopifySettings:
     def merchant_id(self) -> str:
         return self.shop_domain
 
+    @property
+    def mints_tokens(self) -> bool:
+        """True when the example holds an app's credentials and mints its own tokens."""
+        return bool(self.client_id and self.client_secret)
+
 
 def local_store_requested() -> bool:
     return (os.environ.get("SHOPIFY_LOCAL_STORE") or "0").strip() not in {"", "0", "false"}
@@ -71,21 +88,26 @@ def local_store_requested() -> bool:
 def load_settings() -> ShopifySettings:
     local = local_store_requested()
     domain = (os.environ.get("SHOPIFY_SHOP_DOMAIN") or "").strip()
+    client_id = (os.environ.get("SHOPIFY_CLIENT_ID") or "").strip()
+    client_secret = (os.environ.get("SHOPIFY_CLIENT_SECRET") or "").strip()
     token = (os.environ.get("SHOPIFY_ADMIN_TOKEN") or "").strip()
     if local:
         # A local store has no credentials to be missing, and no domain to reach. The name
         # is still a name, so the portal and the ledger have something to call the store.
-        domain, token = domain or LOCAL_DOMAIN, ""
-    elif not domain or not token:
+        domain, client_id, client_secret, token = domain or LOCAL_DOMAIN, "", "", ""
+    elif not domain or not ((client_id and client_secret) or token):
         raise MissingCredentials(
-            "Set SHOPIFY_SHOP_DOMAIN and SHOPIFY_ADMIN_TOKEN in "
-            "merchant/.env (copy merchant/.env.example), or set "
-            "SHOPIFY_LOCAL_STORE=1 to run against the local store instead, with no "
-            "Shopify account at all. A real store means a development store and a token "
-            "minted from a Dev Dashboard app: the README's Run section has the steps."
+            "Set SHOPIFY_SHOP_DOMAIN, and either SHOPIFY_CLIENT_ID and "
+            "SHOPIFY_CLIENT_SECRET or SHOPIFY_ADMIN_TOKEN, in merchant/.env (copy "
+            "merchant/.env.example), or set SHOPIFY_LOCAL_STORE=1 to run against the local "
+            "store instead, with no Shopify account at all. A real store means a "
+            "development store and an app created for it in the Shopify Dev Dashboard: the "
+            "README's Run section has the four steps."
         )
     return ShopifySettings(
         shop_domain=domain.removeprefix("https://").removeprefix("http://").rstrip("/"),
+        client_id=client_id,
+        client_secret=client_secret,
         admin_token=token,
         local_store=local,
         api_version=os.environ.get("SHOPIFY_ADMIN_API_VERSION") or DEFAULT_API_VERSION,

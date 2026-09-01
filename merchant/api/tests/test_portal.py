@@ -339,16 +339,23 @@ async def test_the_dismiss_button_records_the_operator_as_the_actor(
 
 
 def test_the_app_starts_without_credentials_and_says_what_is_missing(monkeypatch) -> None:
-    """The first thing anyone running this example hits. A missing token must not fail at
-    import: the process starts, the health route names both variables and the file they go
-    in, and the operator has something to act on instead of a stack trace."""
+    """The first thing anyone running this example hits. A missing credential must not fail
+    at import: the process starts, the health route names every variable that would do and
+    the file they go in, and the operator has something to act on instead of a stack
+    trace."""
     # Imported before the variables are cleared: the module reads the example's ``.env`` at
     # import time, and on a machine that has one that would put the credentials back.
     from merchant.api.main import create_app  # noqa: PLC0415
 
     # ``SHOPIFY_LOCAL_STORE`` goes too: this is the third state, where neither store is
     # configured, and it is the one a reader reaches by half-filling the file.
-    for name in ("SHOPIFY_SHOP_DOMAIN", "SHOPIFY_ADMIN_TOKEN", "SHOPIFY_LOCAL_STORE"):
+    for name in (
+        "SHOPIFY_SHOP_DOMAIN",
+        "SHOPIFY_CLIENT_ID",
+        "SHOPIFY_CLIENT_SECRET",
+        "SHOPIFY_ADMIN_TOKEN",
+        "SHOPIFY_LOCAL_STORE",
+    ):
         monkeypatch.delenv(name, raising=False)
 
     app = create_app()
@@ -362,5 +369,7 @@ def test_the_app_starts_without_credentials_and_says_what_is_missing(monkeypatch
 
     assert body["ok"] is False
     assert "SHOPIFY_SHOP_DOMAIN" in body["error"]
+    assert "SHOPIFY_CLIENT_ID" in body["error"]
+    assert "SHOPIFY_CLIENT_SECRET" in body["error"]
     assert "SHOPIFY_ADMIN_TOKEN" in body["error"]
     assert ".env" in body["error"]

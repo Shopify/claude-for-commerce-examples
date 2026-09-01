@@ -1,9 +1,11 @@
 # Copyright 2026 Shopify Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-"""The Admin GraphQL transport: one POST per document, the access token held here and
-never passed outward, throttle-aware retries, and GraphQL and ``userErrors`` failures
-raised as exceptions. Everything above this module works in domain types.
+"""The Admin GraphQL transport: one POST per document, the access token fetched per
+request from a :class:`~.admin_token.TokenSource` and never passed outward, throttle-aware
+retries, a token Shopify has stopped accepting minted again once, and GraphQL and
+``userErrors`` failures raised as exceptions. Everything above this module works in domain
+types.
 
 The backend depends on :class:`AdminExecutor`, not on this class, so the tests drive the
 same code over canned documents without a network.
@@ -17,6 +19,8 @@ import re
 from typing import Any, Protocol
 
 import httpx
+
+from .admin_token import TokenError, TokenSource
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +69,15 @@ class AdminExecutor(Protocol):
 
 
 class AdminGraphQLClient:
-    """One store's Admin API endpoint. The token stays in this object's headers: it is
-    never returned, logged, or included in an exception message."""
+    """One store's Admin API endpoint. The token belongs to ``token_source`` and is read
+    from it per request: this object never holds one, and never returns, logs, or names one
+    in an exception message."""
 
     def __init__(
         self,
         *,
         shop_domain: str,
-        access_token: str,
+        token_source: TokenSource,
         api_version: str,
         client: httpx.AsyncClient | None = None,
         timeout_s: float = 30.0,
@@ -80,14 +85,15 @@ class AdminGraphQLClient:
         self.shop_domain = shop_domain
         self.api_version = api_version
         self.endpoint = f"https://{shop_domain}/admin/api/{api_version}/graphql.json"
+        self._tokens = token_source
         self._owns_client = client is None
         self._client = client or httpx.AsyncClient(timeout=timeout_s)
-        self._headers = {
-            "X-Shopify-Access-Token": access_token,
-            "Content-Type": "application/json",
-        }
+        self._headers = {"Content-Type": "application/json"}
 
     async def aclose(self) -> None:
+        """Closes the token source too. It exists to serve this transport and holds its own
+        connection, so one close is the whole shutdown and a caller cannot forget half."""
+        await self._tokens.aclose()
         if self._owns_client:
             await self._client.aclose()
 
@@ -131,22 +137,47 @@ class AdminGraphQLClient:
         return payload
 
     async def _post(
-        self, name: str, document: str, variables: dict[str, Any] | None
+        self,
+        name: str,
+        document: str,
+        variables: dict[str, Any] | None,
+        *,
+        may_renew: bool = True,
     ) -> dict[str, Any]:
+        """One POST. A 401 means the token is spent rather than the request wrong, so a
+        source that can mint another does, once: ``may_renew`` is what stops a store that
+        refuses every token from looping."""
         body: dict[str, Any] = {"query": document}
         if variables:
             body["variables"] = variables
+        headers = {**self._headers, "X-Shopify-Access-Token": await self._token(name)}
         try:
-            response = await self._client.post(self.endpoint, headers=self._headers, json=body)
+            response = await self._client.post(self.endpoint, headers=headers, json=body)
         except httpx.HTTPError as error:
             raise AdminAPIError(
                 f"{name}: {type(error).__name__} talking to the Admin API"
             ) from error
-        if response.status_code == 401 or response.status_code == 403:
+        if response.status_code == 401:
+            if not may_renew:
+                raise AdminAPIError(
+                    f"{name}: the Admin API rejected a freshly minted access token. Check "
+                    "that the app is installed on this store and that the store approved "
+                    "its released version"
+                )
+            if await self._renew(name) is not None:
+                return await self._post(name, document, variables, may_renew=False)
             raise AdminAPIError(
-                f"{name}: the Admin API rejected the access token ({response.status_code}); "
-                "it may have expired, and a token minted from a client ID and secret lasts "
-                "24 hours. Check SHOPIFY_ADMIN_TOKEN and the app's scopes"
+                f"{name}: the Admin API rejected the access token. A token pasted into "
+                "SHOPIFY_ADMIN_TOKEN expires 24 hours after it was minted; set "
+                "SHOPIFY_CLIENT_ID and SHOPIFY_CLIENT_SECRET instead and this example mints "
+                "its own, as needed"
+            )
+        if response.status_code == 403:
+            # Not an expiry. The token authenticated and was then refused, which on this API
+            # means the app's released version is short the scope this document needs.
+            raise AdminAPIError(
+                f"{name}: the Admin API refused the request (403). The token is valid, so "
+                "this is a scope the app's released version does not carry"
             )
         if response.status_code == 429:
             return {"errors": [{"message": "rate limited", "extensions": {"code": _THROTTLED}}]}
@@ -156,6 +187,18 @@ class AdminGraphQLClient:
             return response.json()
         except ValueError as error:
             raise AdminAPIError(f"{name}: the Admin API returned a non-JSON body") from error
+
+    async def _token(self, name: str) -> str:
+        try:
+            return await self._tokens.token()
+        except TokenError as error:
+            raise AdminAPIError(f"{name}: {error}") from error
+
+    async def _renew(self, name: str) -> str | None:
+        try:
+            return await self._tokens.renew()
+        except TokenError as error:
+            raise AdminAPIError(f"{name}: {error}") from error
 
     @staticmethod
     def _backoff(payload: dict[str, Any], attempt: int) -> float:
