@@ -1,10 +1,10 @@
 # Claude for Commerce examples
 
 > [!NOTE]
-> If you are building a storefront agent on Shopify using Claude, the following example
-> will help you get up and running quickly. If you don't have a Claude account already,
-> you can use [Shopify Inbox](https://apps.shopify.com/inbox) to set up an agent that can
-> answer consumer questions on your online store.
+> If you are interested in building a custom storefront agent on Shopify using Claude,
+> the following example will help you get up and running. Alternatively, you can use
+> [Shopify Inbox](https://apps.shopify.com/inbox) to set up a managed storefront agent —
+> no code required — that can answer consumer questions on your online store.
 
 Shopify implementations of
 [Anthropic's commerce-agents blueprint](https://github.com/anthropics/commerce-agents):
