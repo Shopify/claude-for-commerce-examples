@@ -1,13 +1,10 @@
 # Claude for Commerce examples
 
 > [!NOTE]
-> If you are building a storefront agent, Shopify already offers
-> [Inbox](https://apps.shopify.com/inbox), an AI-powered sales associate for your
-> storefront. Buyers can ask questions and get help finding the right products from your
-> catalog. And when buyers sign in with Shop, your Inbox agent can personalize replies
-> using their preferences and purchase history from across Shopify. Inbox learns from
-> your catalog, policies, and store content while you control its tone, style, and
-> rules. [Learn more](https://apps.shopify.com/inbox).
+> If you are building a storefront agent on Shopify using Claude, the following example
+> will help you get up and running quickly. If you don't have a Claude account already,
+> you can use [Shopify Inbox](https://apps.shopify.com/inbox) to set up an agent that can
+> answer consumer questions on your online store.
 
 Shopify implementations of
 [Anthropic's commerce-agents blueprint](https://github.com/anthropics/commerce-agents):
@@ -49,7 +46,10 @@ npm install && npm run dev -w storefront/web       # separate terminal · http:/
 ```
 
 `SHOP_DOMAIN` is any domain serving `/.well-known/ucp` (default `demostore.mock.shop`,
-a Shopify demo store). `.env.example` lists every variable.
+a Shopify demo store). `.env.example` lists every variable. To join a cart the store
+already has, open the storefront with `?cart=<cart id>` (a storefront's `cart` cookie
+value works as-is) or `POST /api/cart/attach`; writes re-read the cart first, so nothing
+done elsewhere is overwritten.
 
 ## Try
 
@@ -72,18 +72,6 @@ Sign-in is authorization-code against Shop, server-side. Buyer tokens are keyed 
 session and never reach the model, the browser, or the logs; each catalog call pairs
 the token with the buyer's IP, as the catalog requires. An expired token re-mints once;
 a failed re-mint falls back to guest.
-
-## Joining the buyer's cart
-
-The agent works on the buyer's cart, not a private one. Open the storefront with
-`?cart=<cart id>` — the value of a Shopify storefront's `cart` cookie works as-is — or
-`POST /api/cart/attach` with the id, and the session binds to that cart and reads it as
-its starting point. Every write re-reads the cart first, so a change made elsewhere in
-the meantime (the store's own pages, another tab) is never overwritten. Each `/api/cart`
-payload carries the `cart_id`: the web app remembers it so a new session picks the same
-cart back up, and a page embedding the agent would set the storefront's cart cookie from
-it. Changing or removing a line the cart already holds needs no prior search; adding
-still requires the agent to have seen the product.
 
 ## Checkout and orders
 
