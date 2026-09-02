@@ -1,5 +1,14 @@
 # Claude for Commerce examples
 
+> [!NOTE]
+> If you are building a storefront agent, Shopify already offers
+> [Inbox](https://apps.shopify.com/inbox), an AI-powered sales associate for your
+> storefront. Buyers can ask questions and get help finding the right products from your
+> catalog. And when buyers sign in with Shop, your Inbox agent can personalize replies
+> using their preferences and purchase history from across Shopify. Inbox learns from
+> your catalog, policies, and store content while you control its tone, style, and
+> rules. [Learn more](https://apps.shopify.com/inbox).
+
 Shopify implementations of
 [Anthropic's commerce-agents blueprint](https://github.com/anthropics/commerce-agents):
 `storefront/` runs the blueprint's shopping agent against a real Shopify store, and
