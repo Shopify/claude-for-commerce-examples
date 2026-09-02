@@ -73,6 +73,18 @@ session and never reach the model, the browser, or the logs; each catalog call p
 the token with the buyer's IP, as the catalog requires. An expired token re-mints once;
 a failed re-mint falls back to guest.
 
+## Joining the buyer's cart
+
+The agent works on the buyer's cart, not a private one. Open the storefront with
+`?cart=<cart id>` — the value of a Shopify storefront's `cart` cookie works as-is — or
+`POST /api/cart/attach` with the id, and the session binds to that cart and reads it as
+its starting point. Every write re-reads the cart first, so a change made elsewhere in
+the meantime (the store's own pages, another tab) is never overwritten. Each `/api/cart`
+payload carries the `cart_id`: the web app remembers it so a new session picks the same
+cart back up, and a page embedding the agent would set the storefront's cart cookie from
+it. Changing or removing a line the cart already holds needs no prior search; adding
+still requires the agent to have seen the product.
+
 ## Checkout and orders
 
 Checkout is a handoff. A non-empty cart is lazily staged as a UCP checkout

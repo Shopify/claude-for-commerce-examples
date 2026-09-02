@@ -12,7 +12,7 @@ import {
   useState,
 } from "react";
 import { type AgentEvent, type AgentTurn, Inspector, useAgentTurn } from "web-shared";
-import { addToCart, api, fetchBrand, fetchCart, UNREACHABLE } from "@/lib/api";
+import { addToCart, api, attachCart, fetchBrand, fetchCart, UNREACHABLE } from "@/lib/api";
 import { useStoreSession } from "@/lib/session";
 import type { Brand, CartPayload } from "@/lib/types";
 import Assistant from "./Assistant";
@@ -34,6 +34,10 @@ interface StoreContextValue {
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
+
+// The cart outlives the session: its id is kept here so a new session picks the same cart
+// back up. A page that embeds the agent would set the storefront's cart cookie instead.
+const CART_ID_KEY = "shopify-storefront-cart-id";
 
 export function useStore(): StoreContextValue {
   const value = useContext(StoreContext);
@@ -63,17 +67,26 @@ export default function StoreShell({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const landCart = useCallback((next: CartPayload) => {
+    setCart(next);
+    if (next.cart_id) window.localStorage.setItem(CART_ID_KEY, next.cart_id);
+  }, []);
+
   const refetchCart = useCallback(async () => {
     const next = await fetchCart();
-    if (next) setCart(next);
-  }, []);
+    if (next) landCart(next);
+  }, [landCart]);
 
   // The cart_update event omits checkout_url, so the event's cart lands immediately and a
   // refetch of /api/cart fills the extras in.
   const onEvent = useCallback(
     (event: AgentEvent) => {
       if (event.type !== "cart_update") return;
-      setCart((current) => ({ ...(event.data.cart as CartPayload), checkout_url: current?.checkout_url }));
+      setCart((current) => ({
+        ...(event.data.cart as CartPayload),
+        checkout_url: current?.checkout_url,
+        cart_id: current?.cart_id,
+      }));
       void refetchCart();
     },
     [refetchCart],
@@ -81,9 +94,31 @@ export default function StoreShell({ children }: { children: ReactNode }) {
 
   const chat = useAgentTurn(api, { sessionId, unreachable: UNREACHABLE, onEvent });
 
+  // A new session joins the cart in progress: `?cart=` from a page that holds the buyer's
+  // cart, else the id remembered from the last session. Without one it starts empty.
   useEffect(() => {
-    if (sessionId) void refetchCart();
-  }, [sessionId, refetchCart]);
+    if (!sessionId) return;
+    const incoming =
+      new URLSearchParams(window.location.search).get("cart") ??
+      window.localStorage.getItem(CART_ID_KEY);
+    if (!incoming) {
+      void refetchCart();
+      return;
+    }
+    void (async () => {
+      const attached = await attachCart(incoming);
+      if (attached) landCart(attached);
+      else {
+        window.localStorage.removeItem(CART_ID_KEY);
+        await refetchCart();
+      }
+      const params = new URLSearchParams(window.location.search);
+      if (!params.has("cart")) return;
+      params.delete("cart");
+      const query = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
+    })();
+  }, [sessionId, refetchCart, landCart]);
 
   // The rail is part of the default layout on wide screens; narrow screens open it on demand.
   useEffect(() => {
@@ -106,12 +141,15 @@ export default function StoreShell({ children }: { children: ReactNode }) {
     if (signInFlag === "ok" && sessionId) void refreshAuth();
   }, [signInFlag, sessionId, refreshAuth]);
 
-  const addProduct = useCallback(async (productId: string) => {
-    const next = await addToCart(productId);
-    if (!next) return false;
-    setCart(next);
-    return true;
-  }, []);
+  const addProduct = useCallback(
+    async (productId: string) => {
+      const next = await addToCart(productId);
+      if (!next) return false;
+      landCart(next);
+      return true;
+    },
+    [landCart],
+  );
 
   const askAssistant = useCallback(
     (message?: string) => {

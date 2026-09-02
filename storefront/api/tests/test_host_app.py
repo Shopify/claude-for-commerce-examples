@@ -17,7 +17,7 @@ from storefront.api.ucp_client import UcpClient
 from shopping_agent.types import ProductDetails
 
 from .oauth_stub import FakeShopOAuth
-from .replay import replay_transport
+from .replay import GONE_CART_ID, fixture_payload, replay_transport
 
 
 @pytest.fixture(scope="module")
@@ -84,6 +84,29 @@ def test_the_direct_add_button_holds_without_provenance(client, monkeypatch):
         headers=start(client),
     )
     assert response.status_code == 400
+
+
+def test_attach_binds_the_session_to_a_storefront_cart(client, monkeypatch):
+    monkeypatch.setattr(
+        main_module.backend,
+        "client",
+        UcpClient(http=httpx.AsyncClient(transport=replay_transport())),
+    )
+    headers = start(client)
+    assert client.get("/api/cart", headers=headers).json()["cart_id"] is None
+
+    cart_id = fixture_payload("/api/ucp/mcp create_cart create")["id"]
+    # The value a storefront's `cart` cookie holds: the token and key, percent-encoded.
+    cookie_value = quote(cart_id.removeprefix("gid://shopify/Cart/"), safe="")
+    attached = client.post("/api/cart/attach", json={"cart_id": cookie_value}, headers=headers)
+    assert attached.status_code == 200
+    assert attached.json()["item_count"] == 1
+    assert attached.json()["cart_id"] == cart_id
+    assert client.get("/api/cart", headers=headers).json()["cart_id"] == cart_id
+
+    unknown = client.post("/api/cart/attach", json={"cart_id": GONE_CART_ID}, headers=headers)
+    assert unknown.status_code == 404
+    assert client.get("/api/cart", headers=headers).json()["cart_id"] == cart_id
 
 
 # -- Sign in with Shop -------------------------------------------------------------

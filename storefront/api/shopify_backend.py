@@ -1,10 +1,12 @@
 # Copyright 2026 Shopify Inc.
 # SPDX-License-Identifier: Apache-2.0
 
-"""``StorefrontBackend`` over a live Shopify shop's UCP tools: catalog reads through ``search_catalog``/``get_product``/``lookup_catalog``, the cart
-through the UCP cart capability (``create_cart``/``update_cart``/``get_cart`` on the
-same endpoint; ``update_cart``'s line list replaces the cart's contents, so every write
-sends the full desired state) with one Shopify cart id kept per session, and policies
+"""``StorefrontBackend`` over a live Shopify shop's UCP tools: catalog reads through
+``search_catalog``/``get_product``/``lookup_catalog``, the cart through the UCP cart
+capability (``create_cart``/``update_cart``/``get_cart`` on the same endpoint;
+``update_cart``'s line list replaces the cart's contents, so every write re-reads the
+cart and sends the full desired state) with one Shopify cart id kept per session — the
+storefront's own cart when the page hands it over (``attach_cart``) — and policies
 through ``search_shop_policies_and_faqs``. A cart id the shop no longer accepts is
 dropped and the write retried once into a fresh cart. Search returns products under their
 ``gid://shopify/Product/…`` ids and details list variants under their
@@ -34,6 +36,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import unquote
 
 from shopping_agent import (
     Cart,
@@ -60,6 +63,15 @@ logger = logging.getLogger(__name__)
 # regardless (the demo store answers in CAD).
 _CONTEXT = {"address_country": "US", "language": "en"}
 _VARIANT_PREFIX = "gid://shopify/ProductVariant/"
+_CART_PREFIX = "gid://shopify/Cart/"
+
+
+def cart_gid(value: str) -> str:
+    """The UCP id of a cart a storefront already holds. A Shopify storefront keeps it in
+    the ``cart`` cookie as ``<token>?key=<key>``, percent-encoded; the Storefront API
+    hands out the full gid. Either form normalizes to ``gid://shopify/Cart/<token>?key=<key>``."""
+    token = unquote(value.strip())
+    return token if token.startswith(_CART_PREFIX) else f"{_CART_PREFIX}{token}"
 _TAG = re.compile(r"<[^>]+>")
 
 # The order envelope's fulfillment event and adjustment types, mapped to the shared
@@ -150,6 +162,27 @@ class ShopifyStorefrontBackend(StorefrontBackend):
         self._sessions.pop(session_id, None)
         if self.identity is not None:
             self.identity.drop(session_id)
+
+    def cart_id_for(self, session_id: str) -> str | None:
+        """The session's UCP cart id, for the host's cart payloads: a page embedding the
+        agent sets the storefront's cart cookie from it, so the buyer's cart and the
+        agent's are one cart."""
+        state = self._sessions.get(session_id)
+        return state.cart_id if state else None
+
+    async def attach_cart(self, session_id: str, cart_id: str) -> Cart | None:
+        """Bind the session to a cart that exists already — the storefront's own, whose id
+        the buyer's page holds — and read it as the session's starting point. ``None``
+        when the shop does not know the id; the session then keeps whatever it had."""
+        try:
+            payload = await self.client.call_ucp("get_cart", {"id": cart_id})
+        except UcpCartGoneError:
+            return None
+        state = self._sessions.setdefault(session_id, _SessionState())
+        # A checkout staged for the previous cart does not describe this one.
+        state.checkout_id = None
+        state.checkout_handoff_url = None
+        return self._map_cart(state, payload)
 
     def recent_orders(self, limit: int = 6) -> list[Order]:
         return []
@@ -338,6 +371,7 @@ class ShopifyStorefrontBackend(StorefrontBackend):
     ) -> Cart:
         state = self._state(session)
         variant_id = await self._resolve_variant(session, state, product_id)
+        await self._refresh_lines(state)
         already = state.lines.get(variant_id)
         line_items = self._line_items(state, variant_id, (already[1] if already else 0) + quantity)
         if state.cart_id is None:
@@ -366,6 +400,7 @@ class ShopifyStorefrontBackend(StorefrontBackend):
         self, session: ShoppingSessionContext, product_id: str, quantity: int
     ) -> Cart:
         state = self._state(session)
+        await self._refresh_lines(state)
         variant_id = (
             product_id
             if product_id in state.lines
@@ -398,6 +433,19 @@ class ShopifyStorefrontBackend(StorefrontBackend):
         # ask re-syncs it.
         state.checkout_handoff_url = None
         return self._map_cart(state, payload)
+
+    async def _refresh_lines(self, state: _SessionState) -> None:
+        """Re-read the cart before composing a write. ``update_cart`` replaces the whole
+        line list, and the cart is not this session's alone: the storefront that shares
+        it (``attach_cart``) may have changed it since the last read."""
+        if state.cart_id is None:
+            return
+        try:
+            payload = await self.client.call_ucp("get_cart", {"id": state.cart_id})
+        except UcpCartGoneError:
+            self._drop_cart(state)
+            return
+        self._map_cart(state, payload)
 
     def _line_items(
         self, state: _SessionState, variant_id: str, quantity: int

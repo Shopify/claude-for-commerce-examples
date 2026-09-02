@@ -32,6 +32,7 @@ from pathlib import Path
 import httpx
 from fastapi import HTTPException, Request
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
 from commerce_common.memory import InMemoryMemoryStore
 from demo_common import (
@@ -48,7 +49,7 @@ from .agent_config import build_shopping_config
 from .brand import BrandSource
 from .catalog_warmup import warm_catalog
 from .identity import AgentToken, ShopSignIn, ShopSignInError, redirect_uri_from_env
-from .shopify_backend import ShopifyStorefrontBackend
+from .shopify_backend import ShopifyStorefrontBackend, cart_gid
 from .ucp_client import UcpClient, shop_domain_from_env
 
 logger = logging.getLogger(__name__)
@@ -76,9 +77,19 @@ agent = ShoppingAgent(
 
 
 async def cart_extras(record) -> dict:
-    """Every cart payload carries the session's checkout handoff link; a non-empty
-    cart is staged as a UCP checkout lazily on the way out (``checkout_url_for``)."""
-    return {"checkout_url": await backend.checkout_url_for(record.session_id)}
+    """Every cart payload carries the session's checkout handoff link — a non-empty
+    cart is staged as a UCP checkout lazily on the way out (``checkout_url_for``) — and
+    the cart's id, for the page to remember or to set the storefront's cart cookie from."""
+    return {
+        "checkout_url": await backend.checkout_url_for(record.session_id),
+        "cart_id": backend.cart_id_for(record.session_id),
+    }
+
+
+class CartAttachRequest(BaseModel):
+    """A cart the storefront already holds: the ``cart`` cookie's value as-is, or the gid."""
+
+    cart_id: str = Field(min_length=1, max_length=512)
 
 
 def note_buyer_ip(request: Request) -> None:
@@ -129,6 +140,18 @@ async def cart_add(request: CartAddRequest, record: host.CurrentSession, raw: Re
         request,
         note="Customer tapped the add-to-cart button on {title} ({product_id}), quantity {quantity}.",
     )
+
+
+@app.post("/api/cart/attach")
+async def cart_attach(
+    request: CartAttachRequest, record: host.CurrentSession, raw: Request
+) -> dict:
+    """Bind the session to the buyer's existing cart, so the agent joins a cart in
+    progress instead of starting a private one. 404 when the shop doesn't know the id."""
+    note_buyer_ip(raw)
+    if await backend.attach_cart(record.session_id, cart_gid(request.cart_id)) is None:
+        raise HTTPException(status_code=404, detail="The shop doesn't know that cart")
+    return await host.cart_payload(record)
 
 
 @app.get("/api/auth/shop/start")

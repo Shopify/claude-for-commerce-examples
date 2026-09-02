@@ -42,6 +42,8 @@ export interface CartPayload {
   currency: string;
   /** Shopify's hosted checkout for this cart; absent until the cart exists. */
   checkout_url?: string | null;
+  /** The Shopify cart id (`gid://shopify/Cart/<token>?key=<key>`); absent until the cart exists. */
+  cart_id?: string | null;
 }
 
 export interface AuthStatus {

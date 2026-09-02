@@ -26,12 +26,19 @@ export function fetchProduct(productId: string): Promise<ProductDetails | null> 
 }
 
 export async function addToCart(productId: string, quantity = 1): Promise<CartPayload | null> {
-  const data = await api.post<{ cart: CartPayload; checkout_url?: string | null }>("/cart/add", {
-    product_id: productId,
-    quantity,
-  });
+  const data = await api.post<{
+    cart: CartPayload;
+    checkout_url?: string | null;
+    cart_id?: string | null;
+  }>("/cart/add", { product_id: productId, quantity });
   if (!data) return null;
-  return { ...data.cart, checkout_url: data.checkout_url };
+  return { ...data.cart, checkout_url: data.checkout_url, cart_id: data.cart_id };
+}
+
+/** Binds the session to a cart that exists already — the storefront's `cart` cookie value
+ * works as-is. Null when the shop doesn't know the id. */
+export function attachCart(cartId: string): Promise<CartPayload | null> {
+  return api.post<CartPayload>("/cart/attach", { cart_id: cartId });
 }
 
 export function fetchBrand(): Promise<Brand | null> {
